@@ -22,77 +22,86 @@ export class ChatController {
     console.log('📨 NEW MESSAGE RECEIVED');
     console.log('User ID:', req.userId);
     console.log('Message:', req.message);
-    console.log('Conversation ID:', req.conversationId || 'NEW');
+    console.log('Conversation ID:', req.conversationId ?? 'NEW');
     console.log('='.repeat(60));
-    
+
     try {
-      console.log('✍️  Writing status to stream...');
-      await stream.write(JSON.stringify({ type: 'status', data: 'thinking' }) + '\n');
-      
+      await stream.write(
+        JSON.stringify({ type: 'status', data: 'thinking' }) + '\n'
+      );
+
       let conversationId = req.conversationId;
+
       if (!conversationId) {
         console.log('🆕 Creating new conversation...');
-        const conv = await this.conversationService.createConversation(req.userId);
-        conversationId = conv.id;
-        console.log('✅ Conversation created:', conversationId);
-        
-        await stream.write(JSON.stringify({ 
-          type: 'conversation_id', 
-          data: conversationId 
-        }) + '\n');
+        const conversation =
+          await this.conversationService.createConversation(req.userId);
+
+        conversationId = conversation.id;
+
+        await stream.write(
+          JSON.stringify({
+            type: 'conversation_id',
+            data: conversationId,
+          }) + '\n'
+        );
       }
 
-      console.log('💾 Saving user message to database...');
+      console.log('💾 Saving user message...');
       await this.conversationService.addMessage(conversationId, {
         role: 'user',
         content: req.message,
       });
-      console.log('✅ User message saved');
 
       console.log('📚 Loading conversation history...');
-      const history = await this.conversationService.getConversationHistory(conversationId);
-      console.log('✅ History loaded, messages:', history.length);
+      const history =
+        await this.conversationService.getConversationHistory(conversationId);
 
       let fullResponse = '';
       let currentAgent = '';
       let chunkCount = 0;
 
-      console.log('🚀 Starting router agent query...');
-      
-      for await (const chunk of this.routerAgent.handleQuery(req.message, history)) {
+      console.log('🚀 Routing message to agent...');
+
+      for await (const chunk of this.routerAgent.handleQuery(
+        req.message,
+        history
+      )) {
         chunkCount++;
-        
-        // Only log every 10th chunk to avoid too much console spam
-        if (chunkCount % 10 === 0 || chunk.type !== 'text') {
-          console.log(`📦 Chunk ${chunkCount}:`, chunk);
-        }
-        
+
         if (chunk.type === 'agent_selected') {
           currentAgent = chunk.data;
-          console.log('🎯 AGENT SELECTED:', currentAgent);
-          await stream.write(JSON.stringify({ 
-            type: 'agent', 
-            data: currentAgent 
-          }) + '\n');
-        } else if (chunk.type === 'reasoning') {
-          console.log('🧠 REASONING:', chunk.data);
-          await stream.write(JSON.stringify({ 
-            type: 'reasoning', 
-            data: chunk.data 
-          }) + '\n');
-        } else if (chunk.type === 'text' && chunk.data) {
+
+          await stream.write(
+            JSON.stringify({
+              type: 'agent',
+              data: currentAgent,
+            }) + '\n'
+          );
+        }
+
+        if (chunk.type === 'reasoning') {
+          await stream.write(
+            JSON.stringify({
+              type: 'reasoning',
+              data: chunk.data,
+            }) + '\n'
+          );
+        }
+
+        if (chunk.type === 'text' && chunk.data) {
           fullResponse += chunk.data;
-          await stream.write(JSON.stringify({ 
-            type: 'text', 
-            data: chunk.data 
-          }) + '\n');
+
+          await stream.write(
+            JSON.stringify({
+              type: 'text',
+              data: chunk.data,
+            }) + '\n'
+          );
         }
       }
 
-      console.log('✅ Router completed');
-      console.log('📊 Total chunks:', chunkCount);
       console.log('📝 Full response length:', fullResponse.length);
-      console.log('🤖 Agent used:', currentAgent);
 
       if (fullResponse) {
         console.log('💾 Saving assistant message...');
@@ -101,26 +110,29 @@ export class ChatController {
           content: fullResponse,
           agent: currentAgent,
         });
-        console.log('✅ Assistant message saved');
-      } else {
-        console.log('⚠️  WARNING: No response generated!');
       }
 
       await stream.write(JSON.stringify({ type: 'done' }) + '\n');
-      console.log('✅ Stream completed successfully');
+      console.log('✅ Stream completed');
       console.log('='.repeat(60));
-      
     } catch (error) {
-      console.error('❌ ERROR in sendMessage:');
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error instanceof Error ? error.message : error);
-      console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
-      console.log('='.repeat(60));
-      
-      await stream.write(JSON.stringify({ 
-        type: 'error', 
-        data: error instanceof Error ? error.message : 'Unknown error' 
-      }) + '\n');
+      console.error('❌ ERROR in sendMessage');
+
+      if (error instanceof Error) {
+        console.error('Error type:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Stack trace:', error.stack);
+      } else {
+        console.error('Unknown error:', error);
+      }
+
+      await stream.write(
+        JSON.stringify({
+          type: 'error',
+          data:
+            error instanceof Error ? error.message : 'Unknown server error',
+        }) + '\n'
+      );
     }
   }
 
@@ -129,7 +141,9 @@ export class ChatController {
   }
 
   async listConversations(userId?: string) {
-    if (!userId) throw new Error('userId is required');
+    if (!userId) {
+      throw new Error('userId is required');
+    }
     return this.conversationService.listConversations(userId);
   }
 
