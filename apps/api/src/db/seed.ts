@@ -14,11 +14,11 @@ async function seed() {
         id: "ORD-001",
         userId: "user-123",
         status: "shipped",
-        items: [
+        items: JSON.stringify([
           { name: "Laptop", quantity: 1, price: 999.99 },
           { name: "Mouse", quantity: 2, price: 29.99 },
-        ],
-        total: 1059.97,
+        ]),
+        total: "1059.97",
         trackingNumber: "TRK123456789",
         estimatedDelivery: new Date("2026-01-20"),
       },
@@ -26,17 +26,21 @@ async function seed() {
         id: "ORD-002",
         userId: "user-123",
         status: "processing",
-        items: [{ name: "Keyboard", quantity: 1, price: 149.99 }],
-        total: 149.99,
-        trackingNumber: null,
+        items: JSON.stringify([
+          { name: "Keyboard", quantity: 1, price: 149.99 },
+        ]),
+        total: "149.99",
+        trackingNumber: undefined,
         estimatedDelivery: new Date("2026-01-25"),
       },
       {
         id: "ORD-003",
         userId: "user-456",
         status: "delivered",
-        items: [{ name: "Monitor", quantity: 1, price: 399.99 }],
-        total: 399.99,
+        items: JSON.stringify([
+          { name: "Monitor", quantity: 1, price: 399.99 },
+        ]),
+        total: "399.99",
         trackingNumber: "TRK987654321",
         estimatedDelivery: new Date("2026-01-10"),
       },
@@ -52,7 +56,7 @@ async function seed() {
         id: "INV-001",
         userId: "user-123",
         orderId: "ORD-001",
-        amount: 1059.97,
+        amount: "1059.97",
         status: "paid",
         dueDate: new Date("2026-01-15"),
         paidDate: new Date("2026-01-14"),
@@ -61,16 +65,16 @@ async function seed() {
         id: "INV-002",
         userId: "user-123",
         orderId: "ORD-002",
-        amount: 149.99,
+        amount: "149.99",
         status: "pending",
         dueDate: new Date("2026-01-30"),
-        paidDate: null,
+        paidDate: undefined,
       },
       {
         id: "INV-003",
         userId: "user-456",
         orderId: "ORD-003",
-        amount: 399.99,
+        amount: "399.99",
         status: "paid",
         dueDate: new Date("2026-01-05"),
         paidDate: new Date("2026-01-03"),
@@ -86,7 +90,7 @@ async function seed() {
       {
         id: "REF-001",
         invoiceId: "INV-003",
-        amount: 399.99,
+        amount: "399.99",
         status: "completed",
         reason: "Product defect",
         processedDate: new Date("2026-01-12"),
@@ -94,10 +98,10 @@ async function seed() {
       {
         id: "REF-002",
         invoiceId: "INV-001",
-        amount: 29.99,
+        amount: "29.99",
         status: "pending",
         reason: "Item not as described",
-        processedDate: null,
+        processedDate: undefined,
       },
     ]);
     console.log("✅ Refunds added");
@@ -137,7 +141,11 @@ async function seed() {
     console.log("🎉 Database seeded successfully!");
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error seeding database:", error);
+    if (error instanceof Error) {
+      console.error("❌ Error seeding database:", error.message);
+    } else {
+      console.error("❌ Unknown error:", error);
+    }
     process.exit(1);
   }
 }
